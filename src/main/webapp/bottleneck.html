@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Profiler</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <style>
+    body {
+        padding-top: 70px;
+        /* Required padding for .navbar-fixed-top. Remove if using .navbar-static-top. Change if height of navigation changes. */
+    }
+    </style>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="http://localhost:8080/Profiler/">Profiler</a>
+            </div>
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">  
+                	<li>
+                        <a href="monitor.html">Monitor</a>
+                    </li>
+                    <li>
+                        <a href="report.html">Report</a>
+                    </li>     
+                    <li>
+                        <a href="about.html">About</a>
+                    </li>
+                    <li>
+                        <a href="bottleneck.html">Bottleneck</a>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+
+    <!-- Page Content -->
+    <div class="container">
+
+        <div class="row">
+            <div class="col-lg-12 text-center">
+                <h1>How to deletermine bottlenecks</h1>
+                <p align="left">Analyzing Performance Bottlenecks
+JConsole is a monitoring tool that comes with the Java SDK. This tool can be used to provide performance-related information. For detailed information refer to product documentation at this location: Home / Platform / Operation and Maintenance / Velocity Studio User Guide / Deployment and Operations Guide / Operations Guide / Introduction to JMX / Profile with JConsole.
+AVM also provides an API to start and stop the Profiler programmatically, which can be useful in performance testcases. Below is a sample code snippet where the aim is to get profiler information for a “Create Order” REST API call.
+theAVM.setProfilerMode(filePath, “EXT”); // Starts profiler in “Extended” Mode 
+var create_response = Global.invokeInterface(RESTINTERFACE,CREATE_ORDER,create_request);         
+theAVM.setProfilerMode(filePath, “OFF”); // Turns off profiler. 
+The profiler has many sections, but the focus of this article is how to determine bottlenecks in scripts. For that, one would go to the SCRIPT CALL STACKS section of the profiler file. Below is a sample</p><br>
+<img src="AVM Sample Log.jpg" alt="AVM Sample Log" style="width: 95%; height: 95%">
+
+<br><br><p align="left">In the sample above, the second script, om.service.createOrderBindingScript is listed as taking 54,473 ms. That time looks high, but we need to determine if that script itself is a bottleneck, or the ones it calls. 
+We can see that the next script in the call stack, om.service.createOrder takes  53,919 seconds.  Here we can conclude that the script om.service.createOrderBindingScript takes 554 ms (54,473 minus 53,919).  One can safely conclude that script is not a bottleneck. Similarly one can conclude the same for the next script, om.service.createOrder.
+When we get to the script cwl_om.createOrder, which takes 53,918ms, at first glance we may conclude that it is a bottleneck, because 53,918 minus 34,124 (the time for cwt_do.setTreeCharacteristics) is 19,794 ms.  However, one has to remember to look for other scripts at the same call level.  In this example there are two other scripts at the same call level as cwt_do.setTreeCharacteristics:  dataorder.service.addOrderItem (which takes 17,723 ms) and dataorder.service.createOrder (1,915ms).
+In total the 3 scripts called by cwl_om.createOrder take 53,762ms (34,124+17,723+1,915ms). Hence, cwl_om.createOrder takes 156ms (53,918 minus 53,762). 
+Moving on to cwt_do.setTreeCharacteristics, it takes 34,124ms and the only script it calls directly, dataorder.service.updateOrder takes 15,752 ms. Therefore, cwt_do.setTreeCharacteristics itself takes 18,372ms. That timing indicates it is a possible bottleneck and a candidate for performance improvement.</p>
+            </div>
+        </div>
+        <!-- /.row -->
+
+    </div>
+    <!-- /.container -->
+
+    <!-- jQuery Version 1.11.1 -->
+    <script src="js/jquery.js"></script>
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="js/bootstrap.min.js"></script>
+
+</body>
+
+</html>

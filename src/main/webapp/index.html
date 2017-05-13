@@ -1,0 +1,472 @@
+<!doctype html>
+<html ng-app="app">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="">
+	<meta name="author" content="">
+
+	<script src="angular.js"></script>
+	<script src="angular-ui-router.js"></script>
+	<!-- Bootstrap Core CSS -->
+	<link href="css/bootstrap.min.css" rel="stylesheet">
+	<!-- Custom CSS -->
+	
+	<script>
+		var textFromFileLoaded = null;
+		var fileToLoad = null;
+		var elementJSON;
+
+		var app = angular.module('app', []);
+
+		app.controller('PerformanceVisualizationController', ['source', "$scope", "$http",
+
+			function(source, $scope, $http) {
+
+			$.ajax({
+			type: 'GET',
+			url: '/Profiler/webapi/callstack',
+			success: function(data){
+
+			}
+ 			});   
+				var _self = this;
+
+				_self.source = source;
+				_self.lines = [];
+				_self.processedLines = [];
+				_self.showOnlyParentAndChilds = false;
+				_self.depth = 0;
+				
+          //_self.CallStackPipeLine = [];
+
+
+          _self.checkDepth = function(actual) {
+          	var shouldShow = true;
+
+          	if(_self.showOnlyParentAndChilds) {
+          		shouldShow = (actual.numPoints-1 == _self.depth || actual.numPoints == _self.depth)
+          	} else {
+          		shouldShow = actual.numPoints <= _self.depth;
+          	}
+
+          	return shouldShow;
+          };
+
+          _self.analyze = function(data) {
+          	var numOfRow = 0;
+
+          	_self.lines = [];
+          	var currentNumOfRow;
+
+          	var re = /(?:\s+([0-9,]+))(?:\s+([0-9,]+))(?:\s+([0-9,]+))(?:\s+([0-9,]+))(?:\s+([0-9,]+))\s+((?:.\ )*)([\S.]+)/g;
+          	var m;
+
+            var calls = [];  // Same as CallStack
+
+            var current;
+
+            var ARROWSYMBOL = "-->";
+
+            var isFirstExecuted = false;
+
+            var rowID = 0;
+
+            var dataUntilSecondOccurance;
+
+            var tempData;
+
+            var StartLineNumber;
+            
+            var testDate;
+
+            var getSecondOccuranceIndex = function (str, m) {
+            	return str.split(m, 2).join(m).length;
+            };
+
+            
+            if(data != null && !isFirstExecuted){
+
+            	var STARTOFFSET = 330;
+
+            	var startIndex = data.indexOf("-----------------------------------------------------") + STARTOFFSET;
+
+            	var endIndex = getSecondOccuranceIndex(data, "-----------------------------------------------------");
+
+            	var startIndexDate = data.indexOf("*********") + 10;
+
+            	tempData = data;
+            	data = data.substr(startIndex, endIndex - startIndex);
+            	dataUntilSecondOccurance = tempData.substr(0, startIndex);
+            	StartLineNumber =  dataUntilSecondOccurance.split(/\r\n|\r|\n/).length;
+            	
+            	testDate = tempData.substring(startIndexDate, startIndexDate+19);
+            }
+
+            while ((m = re.exec(data)) !== null) {   
+            	if (m.index === re.lastIndex) {
+            		re.lastIndex++;
+            	}   
+            	numOfRow++;
+
+            	var numPoints = Math.round(m[6].length / 2);
+
+            	var cleanFloat = function(num) {
+            		return parseFloat(num.replace(",", ""));
+            	};
+
+            	var call = {
+            		line: m[0],
+            		totalTime: cleanFloat(m[1]),
+            		averageTime: cleanFloat(m[2]),
+            		longestTime: cleanFloat(m[3]),
+            		shortestTime: cleanFloat(m[4]),
+            		numCalls: cleanFloat(m[5]),
+            		points: m[6],
+            		numPoints: numPoints,
+            		name: m[7],
+            		childs: [],
+                  parents: [],     //all of its parents for each call what I AM DOING IT NOW //NESTED parents object
+                  parentsStringArray: [],
+                  parentsStringNumPoints: []
+              };
+
+              while(true) {
+                  if(!current) {    //first time?
+                  	calls.push(call);
+
+                  	current = call;
+
+                  	break;
+                  } else if(call.numPoints > current.numPoints) {
+                  	call.parent = current;
+                  	current.childs.push(call);
+
+                  	current = call;
+
+                  	break;
+                  } else {
+                  	current = current.parent;
+
+                  }
+
+              }
+
+
+              _self.lines.push(call);        
+          }
+
+
+
+
+          var calculateChildrenTime = function(call) {
+          	var sum = 0;
+
+          	for(var i=0; i<call.childs.length; i++) {
+          		var childCall = call.childs[i];
+
+          		sum += childCall.totalTime;    
+
+          	}
+
+          	return sum;
+          };
+
+          var processCall = function(call) {
+          	var totalTime = call.totalTime - calculateChildrenTime(call);
+          	
+
+          	_self.processedLines.push({
+          		line: call.line,
+          		totalTime: totalTime,
+          		numCalls: call.numCalls,
+          		points: call.points,
+          		numPoints: call.numPoints,
+          		name: call.name,
+          		parents: call.parents,
+          		parentsStringArray: call.parentsStringArray,
+          		parentsStringNumPoints: call.parentsStringNumPoints,
+          		childs: call.childs,
+          		lineNum: StartLineNumber+_self.processedLines.length,
+          		averageTime: call.averageTime,
+          		longestTime: call.longestTime,
+          		shortestTime: call.shortestTime,
+          		is_botnck: 0,
+          		test_date: new Date(Date.parse(testDate)),
+          		notes: null,
+          		monitor: null
+          	});
+          	
+          	if(call.numPoints == 0){
+          		call.parents = null;
+          	} else {
+                  //calls is the current length
+                  for( var i= (_self.processedLines.length - 1); i > 0 ; i--){
+
+                     //Find the immediate parent
+                     if( (_self.processedLines[ i - 1 ].numPoints + 1) == call.numPoints  ){
+
+                     	_self.processedLines[ _self.processedLines.length - 1 ].parents.push(_self.processedLines[i - 1]);
+
+                     	_self.processedLines[ _self.processedLines.length - 1 ].parentsStringNumPoints = call.points + call.name;
+
+                     	
+                     	findNestedParents(_self.processedLines[i], _self.processedLines.length - 1);
+                     	
+                     	break;
+
+                     }
+                 }
+             }
+
+             
+             for(var i=0; i<call.childs.length; i++) {
+             	var childCall = call.childs[i];
+             	
+                processCall(childCall); //ith child of the current call being processed
+
+            }
+            
+        };
+
+        var findNestedParents = function(currentProcessedLines, currentProcessedLinesIndex) {
+
+        	try{
+        		if (currentProcessedLines.numPoints == 1) {
+                    //reaches the 2nd level of the tree
+                    _self.processedLines[ currentProcessedLinesIndex ].parentsStringArray = currentProcessedLines.parents[0].name + _self.processedLines[ currentProcessedLinesIndex ].parentsStringArray;
+                    _self.processedLines[ currentProcessedLinesIndex ].parentsStringNumPoints ="\n" + currentProcessedLines.parents[0].name  + "\n" + _self.processedLines[ currentProcessedLinesIndex ].parentsStringNumPoints ;
+                } else {
+                	_self.processedLines[ currentProcessedLinesIndex ].parentsStringArray = ( ARROWSYMBOL + currentProcessedLines.parents[0].name ) + _self.processedLines[ currentProcessedLinesIndex ].parentsStringArray;
+                	_self.processedLines[ currentProcessedLinesIndex ].parentsStringNumPoints = (currentProcessedLines.parents[0].points + currentProcessedLines.parents[0].name)  + "\n" + _self.processedLines[ currentProcessedLinesIndex ].parentsStringNumPoints ;
+                }
+                   findNestedParents(currentProcessedLines.parents[0], currentProcessedLinesIndex);
+              }catch(err){
+                  //console.log(currentProcessedLines);
+              }
+
+          }; 
+            //calls.length = 2 initially have the callstacks with numPoints 0
+            for(var i=0; i<calls.length; i++) {
+            	var call = calls[i];
+
+              processCall(call);   //calculate the child
+
+          }
+
+          _self.processedLines.sort(function(callA, callB){
+          	return callB.totalTime-callA.totalTime;
+          });
+          
+      }
+      var postData = null;
+      var postDataParent = null;
+
+      $scope.addRowAsyncAsJSON = function(CallObject, CallObjectConst){
+		  
+		if(CallObject != undefined )   {
+	    	
+		    postData = JSON.stringify({'mID': null, 'mKPI_DESC': "Monitored Script",
+			   	'mFUNCTION_NAME': CallObject.name, 'mTOTAL_TIME': (CallObject.totalTime), 'mMIN_TIME': (CallObject.shortestTime),
+			   	'mMAX_TIME': (CallObject.longestTime), 'mAVG_TIME': (CallObject.averageTime), 'mCOUNT':CallObject.numCalls, 'mIS_BOINCK': true, 'mPARENT':null,
+			   	'mPATH': CallObject.parentsStringArray, 'mTEST_DATE': CallObject.test_date,
+			   	'mPASS': true, 'mKPI_ID': null, 'mNOTES': null, 'mMonitor': null, 'mNestedParents': JSON.parse(postData)});
+		    	
+	 		$scope.addRowAsyncAsJSON(CallObject.parents[0], CallObjectConst);    			    	
+ 		}else{
+		    if(CallObjectConst.monitor == null){
+		    	CallObjectConst.monitor = "ing";
+		    	
+			    $.ajax({
+			    	url: "webapi/monitor",
+			    	type: "POST",
+			    	data: postData,
+					    	
+			    	contentType: "application/json",
+			    	cache: false,
+			    	dataType: "json"
+			    });
+		    }else{
+		    	CallObjectConst.monitor = null;
+		    	postData = null;
+		    }
+ 		  }                  
+ 		}
+ 		 			$scope.uploadFile = function(){
+ 		 				var filename = event.target.files[0].name;
+ 		 				fileToLoad = document.getElementById("fileToLoad").files[0];
+ 		 				
+ 		 				var fileReader = new FileReader();
+ 		 				fileReader.onload = function(fileLoadedEvent) 
+ 		 				{
+
+ 		 					textFromFileLoaded = fileLoadedEvent.target.result;
+ 		 					
+                  //if the array did not click the first time
+                  if( typeof $scope.processedLines != "undefined" && $scope.processedLines != null && $scope.processedLines.length > 0 ){   
+                  	_self.lines = null;
+                  	_self.processedLines = [];
+                  }
+                  
+                  _self.analyze(textFromFileLoaded);
+
+                  $scope.processedLines = _self.processedLines;
+
+                  
+                  $scope.$apply();
+
+                  
+              };         
+              
+              fileReader.readAsText(fileToLoad, "UTF-8");   
+          };
+
+      }
+      
+      ]);
+
+app.directive('customOnChange', function() {
+	return {
+		restrict: 'A',
+		link: function (scope, element, attrs) {
+			var onChangeFunc = scope.$eval(attrs.customOnChange);
+			element.bind('change', onChangeFunc);
+		}
+	};
+});
+
+angular.module('app').value('source', textFromFileLoaded);    
+
+</script>
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+</head>
+<body>
+	<!-- Navigation -->
+	<nav class="navbar navbar-inverse" role="navigation">
+		<div class="container">
+			<!-- Brand and toggle get grouped for better mobile display -->
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+					<span class="sr-only">Toggle navigation</span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="http://localhost:8080/Profiler/">Profiler</a>
+			</div>
+			<!-- Collect the nav links, forms, and other content for toggling -->
+			<div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+				<ul class="nav navbar-nav">
+					<li>
+						<a href="monitor.html">Monitor</a>
+					</li>
+					<li>
+						<a href="report.html">Report</a>
+					</li>
+					<li>
+						<a href="about.html">About</a>
+					</li>
+					<li>
+						<a href="bottleneck.html">Bottleneck</a>
+					</li>
+				</ul>
+			</div>
+			<!-- /.navbar-collapse -->
+		</div>
+		<!-- /.container -->
+	</nav>
+
+	<!-- Page Content -->
+	<div class="container">
+
+		<div class="row">
+			<div class="col-lg-12 text-center">
+				<div ng-controller="PerformanceVisualizationController as pvCtrl">
+					
+					<table>
+						<tr>
+							<td>Select a File to Load:</td>
+							<td><input type="file" id="fileToLoad" custom-on-change="uploadFile"> </td>
+						</tr>
+					</table>
+					
+
+<!--      <script src="logData.js"></script>  
+-->
+<!-- <div ng-controller="PerformanceVisualizationController as pvCtrl"> -->
+
+<table id="myTable">
+	<tr>
+		<th><center>Log Line #</center></th>
+		<th><center>Total Time(ms)</center></th>
+		<th><center>Num Calls</center></th>
+		<th><center>Average Time(ms)</center></th>
+		<th><center>Call</center></th>
+		<th><center>Call Stack</center></th>
+		<th><center></center></th>
+		<th><center>Depth</center></th>
+	</tr>
+
+	<ul class="processedLines"> <!-- ng-controller="loadScriptParents" -->
+		<tr ng-repeat="line in processedLines" style="vertical-align: text-top;">
+			<td ng-model="StartLineNumberFunc">{{ line.lineNum }}</td>
+			<td>{{ line.totalTime }}</td>
+			<td>{{ line.numCalls }}</td>
+			<td>{{ line.totalTime/line.numCalls | number:3 }}</td>
+			<td>{{ line.name }}</td>
+
+			<td><a target="_blank" ng-click="showDetails = ! showDetails" ng-class="{'hidden2': ! showDetails}">
+				<span ng-show="showDetails">-</span>
+				<span ng-hide="showDetails">+</span>
+			</td><!-- tyle="white-space:pre-wrap ;" --><!-- word-wrap:break-word; --><!-- text-align: right -->
+			<td id="myParents" >
+				<div class="line-details" ng-class="{'hidden': ! showDetails}" style="white-space: pre; text-align: left;"><!-- width:100% -->
+					{{line.parentsStringNumPoints}}  
+				</div>
+			</td>
+			<td>{{ line.numPoints }}</td>
+			<td><a id="addRow" href="" ng-click='addRowAsyncAsJSON(line, line)'>Monitor{{line.monitor}}</a>
+			</td>
+			<!-- <button ng-click="saveScriptToDB()"> -->
+
+<!--             <td><button ng-click="saveScriptToDB()">Save to Oracle Database</button></td>           
+-->        </tr>
+</ul>
+          <!-- <td id="myParents">
+            <div id="myParents">
+              <p> Here pops Info on something when parent1 is clicked. {{ line.parentsStringArray }} </p>
+            </div>
+          </td>
+      </tr> -->
+
+  </table>
+
+</ul>
+<!-- </div> -->
+</div>
+</div>
+</div>
+</div>
+<!-- jQuery Version 1.11.1 -->
+<script src="js/jquery.js"></script> 
+<!-- <script src="angular-ui-router.js"></script> -->
+<style>
+	td.hidden {
+		display: none;
+	}
+	.line-details{
+/*      max-height: 100px;
+*/      transition: .8s;
+overflow: hidden;
+}
+
+.line-details.hidden {
+	max-height: 0;
+}
+</style>
+
+<html>
+</html>
+</body>
+</html>

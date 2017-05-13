@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC "-//Hibernate/Hibernate Configuration DTD 3.0//EN" "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+<session-factory>
+<!-- connection to the database -->
+<property name="connection.url">jdbc:oracle:thin:@localhost:1521:orcl</property>
+<property name="connection.driver_class">oracle.jdbc.driver.OracleDriver</property>
+<property name="connection.username">PERF_DEC14</property>
+<property name="connection.password">cw</property>
+
+<property name="dialect">org.hibernate.dialect.OracleDialect</property>
+<property name="show_sql">true</property>
+<property name="hbm2ddl.auto">update</property>
+
+<!-- <mapping resource="PERF_AVERAGES.hbm.xml"/> -->
+
+
+<!-- name the annotated entity class -->
+<mapping class="model.PERF_AVERAGES"/>
+<mapping class="model.PERFORMANCE_LOG"/>
+
+</session-factory>
+</hibernate-configuration>

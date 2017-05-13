@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Profiler</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <style>
+    body {
+        padding-top: 70px;
+        /* Required padding for .navbar-fixed-top. Remove if using .navbar-static-top. Change if height of navigation changes. */
+    }
+    </style>
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="http://localhost:8080/Profiler/">Profiler</a>
+            </div>
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">   
+                	<li>
+                        <a href="monitor.html">Monitor</a>
+                    </li>
+                    <li>
+                        <a href="report.html">Report</a>
+                    </li>         
+                    <li>
+                        <a href="about.html">About</a>
+                    </li>
+                    <li>
+                        <a href="bottleneck.html">Bottleneck</a>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+
+    <!-- Page Content -->
+    <div class="container">
+
+        <div class="row">
+            <div class="col-lg-12 text-center">
+                <h1>About</h1 >
+                <p align="left"># Performance Log Analyzer
+
+Author: Fernando Almeida (fernando.m.al.91@gmail.com - Personal e-mail, previous one was fernando.almeida@inatel.br), Henry Zhu (henry.zhu@zcomsystems.com)<br>
+
+<p>## Problem
+
+The Velocity Studio can generate a performance log (using jconsole), but, with the Script Call Stack, there is a lot of lines of information, but to analyze the time consumed by some call, we should check also the time consumed by it's childs. It is a mechanical effort that can, and should, be made by a computer.<br></p>
+
+<p>## Goal
+
+The Performance Log Analyzer check all the script call stack, calculate the consumed time by each method and display in a rank of most consuming time method to least consuming time method. In a few seconds we can see the most consuming time methods and look for bottlenecks.<br></p>
+
+<p>## Structure of the project
+
+It was an effort to keep the project very simple, with a few files. Currently there are 7 files:
+- angular.min.js - AngularJS lib, used to display the files in a easy way, It could be used VannilaJS, but I wanted to use AngularJS just to pratice :D.
+- index.html - The main file of the Performance Log Analyzer. It have the HTML that displays the table and the logic that read the script call stack, calculate the consuming time of each method call and provide the information to the HTML.
+- about.html
+- bottleneck.html
+- Readme.md - This file :D.
+
+<br><br></p><p align="left">
+Ok, files explained, let's see how we could use this Performance Log Analyzer. I'll describe how to use it in steps:
+
+<p align="left">- 1 - Open the index.html;</p>
+<p align="left">- 2 - Upload any performance log (i.e. envX_Y.txt, after_updateProductOfferOrderItem_20.log) file one at a time</p>
+<p align="left">- 3 - Check the most consuming time bottlenecks and try to resolve them! (Good luck! :D).</p>
+<p align="left">- 4 - Click the + sign in the Call Stack column will expand its parents.</p><br>
+
+If you see "[]" in the parents column, it means that this callstack has no parent.
+
+The Call Stack column expands to:
+root
+.root's child
+..root's child's child
+...currentCallStack
+<br></p></p>
+
+               
+            </div>
+        </div>
+        <!-- /.row -->
+
+    </div>
+    <!-- /.container -->
+
+    <!-- jQuery Version 1.11.1 -->
+    <script src="js/jquery.js"></script>
+
+    <!-- Bootstrap Core JavaScript -->
+    <script src="js/bootstrap.min.js"></script>
+
+</body>
+
+</html>

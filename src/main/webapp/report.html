@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html ng-app="app">
+
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="">
+<meta name="author" content="">
+
+<title>Profiler</title>
+
+<!-- Bootstrap Core CSS -->
+<link href="css/bootstrap.min.css" rel="stylesheet">
+<script src="angular.js"></script>
+<script src="angular-ui-router.js"></script>
+
+<!-- Custom CSS -->
+<style>
+body {
+	padding-top: 70px;
+	/* Required padding for .navbar-fixed-top. Remove if using .navbar-static-top. Change if height of navigation changes. */
+}
+</style>
+</head>
+
+<body  <!--ng-controller="GraphVisualizationController">
+
+	<!-- Navigation -->
+	<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+		<div class="container">
+			<!-- Brand and toggle get grouped for better mobile display -->
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle" data-toggle="collapse"
+					data-target="#bs-example-navbar-collapse-1">
+					<span class="sr-only">Toggle navigation</span> <span
+						class="icon-bar"></span> <span class="icon-bar"></span> <span
+						class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="http://localhost:8080/Profiler/">Profiler</a>
+			</div>
+			<!-- Collect the nav links, forms, and other content for toggling -->
+			<div class="collapse navbar-collapse"
+				id="bs-example-navbar-collapse-1">
+				<ul class="nav navbar-nav">
+					<li><a href="monitor.html">Monitor</a></li>
+					<li><a href="report.html">Report</a></li>
+					<li><a href="about.html">About</a></li>
+					<li><a href="bottleneck.html">Bottleneck</a></li>
+				</ul>
+			</div>
+			<!-- /.navbar-collapse -->
+		</div>
+		<!-- /.container -->
+	</nav>
+
+	<!-- Page Content -->
+	<div class="container">
+		<div class="row">
+			<div class="col-lg-12 text-center">
+				<script type="text/javascript"
+					src="https://www.gstatic.com/charts/loader.js">
+				</script>
+					 <div class="inner" id="chart_div_id"></div>
+
+			<script>
+			 var app = angular.module('app', []);
+
+		     google.charts.load('current', {'packages':['corechart']});
+		     google.charts.setOnLoadCallback(drawChart);
+
+		     function drawChart() {
+								
+				$.ajax({
+					type: 'GET',
+					url: '/Profiler/webapi/callstack',
+					success: function(data){
+				 
+					var num_KPI_ID = [];
+					var numOfUniqueID = [];
+					var graph_array = [];
+					var graph_time_array = [];
+					var counter = 0;
+					var currentDate;
+					//ignore the Baselines for the time axis
+					for(var i = 0; i < data.length; i++){
+						if(!data[i].mIS_BASELINE){
+							currentDate = new Date(data[i].mTEST_END);
+							break;
+						}
+					}
+					//Count number of unique mKPI_ID and num_KPI_ID's order is Java's TreeMap
+				    numOfUniqueID.push(data[0]);
+					num_KPI_ID.push(data[0].mKPI_ID);
+					for( var i = 0; i < data.length; i++){
+								
+							
+						for(var j = 0; j < num_KPI_ID.length; j++){
+
+							if(num_KPI_ID[j] == data[i].mKPI_ID ){
+								break;
+							}
+															
+							if(j == (num_KPI_ID.length - 1)){
+								numOfUniqueID.push(data[i]);
+								num_KPI_ID.push(data[i].mKPI_ID);
+							}
+						}
+					}
+					//Sort list alphabetically and numerically
+					var reA = /[^a-zA-Z]/g;
+					var reN = /[^0-9]/g;
+					function sortAlphaNum(a,b) {
+					    var aA = a.replace(reA, "");
+					    var bA = b.replace(reA, "");
+					    if(aA === bA) {
+					        var aN = parseInt(a.replace(reN, ""), 10);
+					        var bN = parseInt(b.replace(reN, ""), 10);
+					        return aN === bN ? 0 : aN > bN ? 1 : -1;
+					    } else {
+					        return aA > bA ? 1 : -1;
+					    }
+					}
+					num_KPI_ID.sort(sortAlphaNum);
+					
+					var numOfGraph = Math.ceil(num_KPI_ID.length/5);
+							
+					for( var i = 0; i < data.length; i++){
+					    if(!data[i].mIS_BASELINE){
+
+							var _MS_PER_DAY = 1000 * 60 * 60 * 24;
+								
+							var utc1 = Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+							var utc2 = Date.UTC(new Date(data[i].mTEST_END).getFullYear(), new Date(data[i].mTEST_END).getMonth(), new Date(data[i].mTEST_END).getDate());
+							var DayDiff = Math.floor((utc2 - utc1) / _MS_PER_DAY);
+									
+		
+							if(DayDiff > 0){
+								currentDate = new Date(data[i].mTEST_END);
+									
+								for(var j = DayDiff; j > 0; j--){
+							
+								    var dat = new Date(data[i].mTEST_END);
+								    //date add one more day due to Daylight saving offset from Java
+								    dat.setDate(dat.getDate()-j+1);
+									graph_array.splice(counter, 0, dat);
+								    
+									counter++;						
+								}
+							}
+					    }
+					 }
+					 var lastDat = new Date(data[data.length-1].mTEST_END);
+					 lastDat.setDate(lastDat.getDate()+1);
+					 graph_array.splice(counter, 0, lastDat);								 
+			       
+				          var options = {
+				            width: 1200,
+				            height: 400,
+				          hAxis: {
+				              format: 'MMM dd, yyyy',
+				              gridlines: {count: graph_array.length}
+				            },
+				            vAxis: {
+				              gridlines: {color: 'none'},
+				              minValue: 0,
+				              title: 'Average Run Time (Seconds)'
+				              //format: decimal
+				            },
+				            chartArea: {
+				    			height:'65%'
+				    		},
+				            explorer: {
+				            	axis: 'vertical',
+				    			maxZoomIn:100,
+				    			keepInBounds: true,
+				    		}
+				          };
+				         
+
+				          for(var graph = 0; graph < num_KPI_ID.length; graph++){
+								 divID = document.createElement("div");
+								 divID.id = "chart_div"+graph;
+								 document.getElementById("chart_div_id").appendChild(divID);
+								 var chart = new google.visualization.LineChart(document.getElementById(divID.id));
+								 
+								 var googleData = new google.visualization.DataTable();
+									
+						         googleData.addColumn('date', 'Time of Day');
+						         var numOfLinePerGraph = 1;
+						         var baseline;
+						         if(num_KPI_ID[graph] == "CBIO_SR1"){
+								    	 googleData.addColumn('number', num_KPI_ID[graph]+"-"+"Get Products from SR for a specific customer");
+								    	 googleData.addColumn('number', num_KPI_ID[graph]+"-BASELINE-"+new Date(data[i].mTEST_END).toDateString());
+								    	 numOfLinePerGraph++;
+								    	//Check if there is a baseline for the KPI_ID
+								    	 for(var i = 0; i < data.length - 1; i++){
+								    		 if(data[i].mIS_BASELINE && data[i].mKPI_ID == num_KPI_ID[graph]){
+								    			 baseline = data[i].mAVERAGE_TOTALTIME;
+								    			 break;
+								    		 }
+								    	 }
+						    	 }else{
+							    	 googleData.addColumn('number', num_KPI_ID[graph]+"-"+numOfUniqueID[graph].mKPI_DESC);
+							    	 	 //Check if there is a baseline for the KPI_ID
+								    	 for(var i = 0; i < data.length - 1; i++){
+								    		 if(data[i].mIS_BASELINE && data[i].mKPI_ID == num_KPI_ID[graph]){
+								    			 googleData.addColumn('number', num_KPI_ID[graph]+"-BASELINE-"+new Date(data[i].mTEST_END).toDateString());
+								    			 numOfLinePerGraph++;
+								    			 baseline = data[i].mAVERAGE_TOTALTIME;
+								    			 break;
+								    		 }
+								    	 }
+
+						    	 }
+						         
+						         var graph_plot = new Array(graph_array.length);
+
+							     for(var i = 0; i < graph_array.length; i++){
+							    	 graph_plot[i] = new Array(numOfLinePerGraph);
+
+							    	 graph_plot[i][0] = graph_array[i];
+						        		 
+						        		
+						        		//Find the average if one date has more than one instances of KPI_ID
+										var count_KPI_ID = 0;
+							        	var count_KPI_ID_Sum = 0;
+								        	for(var n = 0; n < data.length; n++){
+								        		 
+									        	var dat = new Date(data[n].mTEST_END);
+												dat.setDate(dat.getDate()+1);
+														 
+												if(graph_array[i].getTime() === dat.getTime() && num_KPI_ID[graph] == data[n].mKPI_ID){
+													 count_KPI_ID++;
+													 count_KPI_ID_Sum = count_KPI_ID_Sum + data[n].mAVERAGE_TOTALTIME;
+												}
+												if(n == (data.length - 1) || dat.getTime() > graph_array[i]){
+															 											 
+													if (count_KPI_ID == 0){
+		
+														graph_plot[i][1] = null;
+				    									break;
+		
+												    }else if (count_KPI_ID >= 1){
+														var average = count_KPI_ID_Sum/count_KPI_ID;
+														graph_plot[i][1] = average; 
+														break;
+													}
+												}
+										
+									        	if(numOfLinePerGraph == 2 ){
+									        		graph_plot[i][2] = baseline;
+								        		}
+						         			}
+						      	 }
+						         
+						         //Join the points
+					        	 for(var row = 1; row <= numOfLinePerGraph; row++){
+									
+					        		 var dateDiff=1;
+					        		 var valueDiff = 0;
+					        		 var columnStart=0;
+					        		 var columnNotNull = 0;
+					        		 var columnAssignment=0;
+							         for(var column = 0; column < graph_array.length; column++){						        		 
+
+						        		 if(graph_plot[column][row] == null){
+						        			 if(column >= 1){
+						        				 if(graph_plot[column-1][row] == null||(dateDiff == 1 && graph_plot[column-1][row] != null)){
+							        				 if(dateDiff == 1){
+						        					 	columnStart = column-1;
+							        				 }
+						        					 dateDiff++;
+							        				 if(column+1 <= graph_array.length -1 ){
+								        				 if(graph_plot[column+1][row] != null && (column+dateDiff) <= graph_array.length){
+								        					 valueDiff = graph_plot[columnStart][row]-graph_plot[columnStart+dateDiff][row];
+								        					 for(var InnerCol = columnStart+1; InnerCol < (columnStart+dateDiff); InnerCol++){
+								        						 if(graph_plot[columnStart][row] != null){
+								        							 graph_plot[InnerCol][row] = graph_plot[columnStart][row] - (InnerCol-columnStart)*(valueDiff/dateDiff); 
+								        						 }
+								        					}
+								        				 }
+							        				  }
+
+							        			  }	
+						        			 }
+
+						        		 }else{
+						        			 //Join the point at last column
+						        			 if(column==(graph_array.length-1)){
+							        				if(graph_plot[column-1][row] == null||(dateDiff == 1 && graph_plot[column-1][row] != null)){
+								        				 if(dateDiff == 1){
+							        					 	columnStart = column-1;
+								        				 }
+							        					 if(column <= graph_array.length -1 ){
+									        				 valueDiff = graph_plot[columnStart][row]-graph_plot[columnStart+dateDiff][row];
+									        				 for(var InnerCol = columnStart+1; InnerCol < (columnStart+dateDiff); InnerCol++){
+									        					 graph_plot[InnerCol][row] = graph_plot[columnStart][row] - (InnerCol-columnStart)*(valueDiff/dateDiff); 
+									        				 }
+									        				 
+								        				 }
+								        				 
+							        				}
+							        			}
+						        			 dateDiff = 1;
+						        			 columnNotNull = column;
+						        			 columnAssignment++;
+						        		 }	 
+								         if(column == (graph_array.length - 1) && columnAssignment == 1){
+						        		 	//if there are only one point for the ID								        		 
+								        	 for(var h = columnNotNull; h < graph_array.length; h++){
+								        		 graph_plot[h][row] = graph_plot[columnNotNull][row];
+								        	 }
+								        	 
+								         }
+								         if(column == (graph_array.length - 1)){
+								        	 for(var l = columnNotNull; l < graph_array.length; l++){
+								        		 graph_plot[l][row] = graph_plot[columnNotNull][row];
+
+								        	 }
+								         }
+						        	 }	         
+						         }
+						         for(var i = 0; i < graph_array.length; i++){
+						        	 googleData.addRow(graph_plot[i]);
+
+						         }
+								 chart.draw(googleData, options);
+							}
+						 }
+					});
+		     }		
+
+			</script>
+			
+			</div>
+		</div>
+		<!-- /.row -->
+
+	</div>
+	<!-- /.container -->
+
+	<!-- jQuery Version 1.11.1 -->
+	<script src="js/jquery.js"></script>
+
+	<!-- Bootstrap Core JavaScript -->
+	<script src="js/bootstrap.min.js"></script>
+	<style>
+	.inner {
+     display: table;
+    position: relative;
+    right: 50px;
+    height: 100%;
+    width: 100%;
+    top: -50px;
+    
+    display: table-cell;
+    vertical-align: middle;
+    text-align:center;
+	}
+	</style>
+</body>
+
+</html>
